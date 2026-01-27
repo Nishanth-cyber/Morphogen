@@ -1,5 +1,5 @@
 """
-Main pipeline orchestrating all agents
+Main pipeline orchestrating all agents and returning JSON + AutoLISP
 """
 
 import json
@@ -15,46 +15,198 @@ from agents import (
 )
 
 
-class GenerativeDesignPipeline:
+def run_pipeline(user_input: str) -> dict:
     """
-    Main pipeline that orchestrates all 5 agents
+    Simplified pipeline runner that returns JSON design data
+    
+    Args:
+        user_input: Natural language construction request
+        
+    Returns:
+        Dictionary with design data in JSON format
     """
     
-    def __init__(self):
+    print(f"\n{'='*60}")
+    print(f"EXECUTING GENERATIVE DESIGN PIPELINE")
+    print(f"{'='*60}")
+    print(f"Input: {user_input}\n")
+    
+    try:
         # Validate configuration
         Config.validate()
         
-        # Initialize all agents
-        self.intent_agent = IntentAgent(
+        # Initialize agents
+        intent_agent = IntentAgent(
             api_key=Config.GOOGLE_API_KEY,
             model_name=Config.MODEL_NAME,
             temperature=Config.TEMPERATURE
         )
         
-        self.requirement_agent = RequirementAgent(
+        requirement_agent = RequirementAgent(
             api_key=Config.GOOGLE_API_KEY,
             model_name=Config.MODEL_NAME,
             temperature=Config.TEMPERATURE
         )
         
-        self.rules_agent = RulesAgent(
+        rules_agent = RulesAgent(
             api_key=Config.GOOGLE_API_KEY,
             model_name=Config.MODEL_NAME,
             temperature=Config.TEMPERATURE
         )
         
-        self.layout_agent = LayoutAgent(
+        layout_agent = LayoutAgent(
             api_key=Config.GOOGLE_API_KEY,
             model_name=Config.MODEL_NAME,
             temperature=Config.TEMPERATURE
         )
         
-        self.autolisp_agent = AutoLispAgent(
-            api_key=Config.GOOGLE_API_KEY,
-            model_name=Config.MODEL_NAME,
-            temperature=Config.TEMPERATURE
-        )
+        # Agent 1: Intent Understanding
+        print("→ Agent 1: Understanding intent...")
+        intent_data = intent_agent.parse(user_input)
+        print(f"  ✓ Extracted intent: {intent_data.get('building_type')} - {intent_data.get('bedroom_count')} bedrooms")
         
+        # Agent 2: Requirement Expansion
+        print("→ Agent 2: Expanding requirements...")
+        requirements = requirement_agent.expand(intent_data)
+        print(f"  ✓ Generated {len(requirements.get('rooms', []))} rooms - Total area: {requirements.get('total_area_sqft')} sqft")
+        
+        # Agent 3: Engineering Rules
+        print("→ Agent 3: Applying engineering rules...")
+        dimensions = rules_agent.validate(requirements)
+        print(f"  ✓ Validated dimensions - Wall thickness: {dimensions.get('wall_thickness_mm')}mm")
+        
+        # Agent 4: Layout Planning
+        print("→ Agent 4: Planning spatial layout...")
+        layout = layout_agent.plan(dimensions)
+        bbox = layout.get('bounding_box', {})
+        print(f"  ✓ Generated layout - Size: {bbox.get('width_mm')}mm × {bbox.get('height_mm')}mm")
+        
+        # Convert layout to JSON format for frontend
+        design_json = convert_layout_to_json(layout, intent_data, requirements)
+        
+        print(f"\n{'='*60}")
+        print(f"✓ PIPELINE COMPLETED SUCCESSFULLY")
+        print(f"{'='*60}\n")
+        
+        return design_json
+        
+    except Exception as e:
+        print(f"\n✗ PIPELINE ERROR: {e}\n")
+        raise e
+
+
+def convert_layout_to_json(layout: dict, intent_data: dict, requirements: dict) -> dict:
+    """
+    Convert layout data to JSON format compatible with frontend
+    
+    Args:
+        layout: Layout data from Agent 4
+        intent_data: Intent data from Agent 1
+        requirements: Requirements data from Agent 2
+        
+    Returns:
+        JSON design data
+    """
+    
+    # Extract bounding box
+    bbox = layout.get('bounding_box', {})
+    
+    # Extract rooms
+    rooms_data = []
+    for room in layout.get('rooms', []):
+        rooms_data.append({
+            "id": room.get('id', f"room_{len(rooms_data)}"),
+            "name": room.get('name', 'Room'),
+            "bounds": {
+                "x": room.get('x_mm', 0),
+                "y": room.get('y_mm', 0),
+                "width": room.get('width_mm', 0),
+                "height": room.get('height_mm', 0)
+            },
+            "area": room.get('area_sqft', 0),
+            "label_position": [
+                room.get('x_mm', 0) + room.get('width_mm', 0) / 2,
+                room.get('y_mm', 0) + room.get('height_mm', 0) / 2
+            ]
+        })
+    
+    # Extract walls
+    walls_data = []
+    for wall in layout.get('walls', []):
+        walls_data.append({
+            "id": wall.get('id', f"wall_{len(walls_data)}"),
+            "type": "line",
+            "start": [wall.get('x1_mm', 0), wall.get('y1_mm', 0)],
+            "end": [wall.get('x2_mm', 0), wall.get('y2_mm', 0)],
+            "layer": "walls",
+            "thickness": wall.get('thickness_mm', 230)
+        })
+    
+    # Extract doors
+    doors_data = []
+    for door in layout.get('doors', []):
+        doors_data.append({
+            "id": door.get('id', f"door_{len(doors_data)}"),
+            "type": "door",
+            "position": [door.get('x_mm', 0), door.get('y_mm', 0)],
+            "width": door.get('width_mm', 900),
+            "orientation": door.get('orientation', 'horizontal'),
+            "layer": "doors"
+        })
+    
+    # Extract windows (if present)
+    windows_data = []
+    for window in layout.get('windows', []):
+        windows_data.append({
+            "id": window.get('id', f"window_{len(windows_data)}"),
+            "type": "window",
+            "position": [window.get('x_mm', 0), window.get('y_mm', 0)],
+            "width": window.get('width_mm', 1200),
+            "orientation": window.get('orientation', 'horizontal'),
+            "layer": "windows"
+        })
+    
+    # Create external boundary points
+    boundary_points = [
+        [0, 0],
+        [bbox.get('width_mm', 10000), 0],
+        [bbox.get('width_mm', 10000), bbox.get('height_mm', 10000)],
+        [0, bbox.get('height_mm', 10000)]
+    ]
+    
+    # Build final JSON structure
+    design_json = {
+        "metadata": {
+            "units": "mm",
+            "building_type": intent_data.get('building_type', 'residential'),
+            "total_area": requirements.get('total_area_sqft', 1000),
+            "bedroom_count": intent_data.get('bedroom_count', 2),
+            "timestamp": datetime.now().isoformat()
+        },
+        "elements": {
+            "external_boundary": {
+                "type": "polyline",
+                "points": boundary_points,
+                "closed": True,
+                "layer": "walls"
+            },
+            "walls": walls_data,
+            "doors": doors_data,
+            "windows": windows_data,
+            "rooms": rooms_data
+        }
+    }
+    
+    return design_json
+
+
+class GenerativeDesignPipeline:
+    """
+    Main pipeline class (for backward compatibility)
+    """
+    
+    def __init__(self):
+        Config.validate()
         self.execution_log = []
     
     def execute(self, user_input: str) -> dict:
@@ -65,114 +217,27 @@ class GenerativeDesignPipeline:
             user_input: Natural language construction request
             
         Returns:
-            Dictionary with AutoLISP code and execution metadata
+            Dictionary with design data and metadata
         """
-        
-        print(f"\n{'='*60}")
-        print(f"EXECUTING GENERATIVE DESIGN PIPELINE")
-        print(f"{'='*60}")
-        print(f"Input: {user_input}\n")
-        
-        self.execution_log = []
-        
         try:
-            # Agent 1: Intent Understanding
-            print("→ Agent 1: Understanding intent...")
-            intent_data = self.intent_agent.parse(user_input)
-            self._log_step("Intent Understanding", intent_data)
-            print(f"  ✓ Extracted intent: {intent_data.get('building_type')} - {intent_data.get('bedroom_count')} bedrooms")
-            
-            # Agent 2: Requirement Expansion
-            print("→ Agent 2: Expanding requirements...")
-            requirements = self.requirement_agent.expand(intent_data)
-            self._log_step("Requirement Expansion", requirements)
-            print(f"  ✓ Generated {len(requirements.get('rooms', []))} rooms - Total area: {requirements.get('total_area_sqft')} sqft")
-            
-            # Agent 3: Engineering Rules
-            print("→ Agent 3: Applying engineering rules...")
-            dimensions = self.rules_agent.validate(requirements)
-            self._log_step("Engineering Rules", dimensions)
-            print(f"  ✓ Validated dimensions - Wall thickness: {dimensions.get('wall_thickness_mm')}mm")
-            
-            # Agent 4: Layout Planning
-            print("→ Agent 4: Planning spatial layout...")
-            layout = self.layout_agent.plan(dimensions)
-            self._log_step("Layout Planning", layout)
-            bbox = layout.get('bounding_box', {})
-            print(f"  ✓ Generated layout - Size: {bbox.get('width_mm')}mm × {bbox.get('height_mm')}mm")
-            
-            # Agent 5: AutoLISP Generation
-            print("→ Agent 5: Generating AutoLISP code...")
-            autolisp_code = self.autolisp_agent.generate(layout)
-            self._log_step("AutoLISP Generation", {"code_length": len(autolisp_code)})
-            print(f"  ✓ Generated {len(autolisp_code)} characters of AutoLISP code")
-            
-            # Save output
-            filename = self._save_output(autolisp_code)
-            
-            print(f"\n{'='*60}")
-            print(f"✓ PIPELINE COMPLETED SUCCESSFULLY")
-            print(f"{'='*60}")
-            print(f"Output file: {filename}\n")
+            design_json = run_pipeline(user_input)
             
             return {
                 "success": True,
-                "autolisp_code": autolisp_code,
-                "filename": filename,
-                "execution_log": self.execution_log,
-                "metadata": {
-                    "intent": intent_data,
-                    "requirements": requirements,
-                    "dimensions": dimensions,
-                    "layout": layout
-                }
+                "design_data": design_json,
+                "message": "Design generated successfully"
             }
             
         except Exception as e:
-            print(f"\n✗ PIPELINE ERROR: {e}\n")
             return {
                 "success": False,
-                "error": str(e),
-                "execution_log": self.execution_log
+                "error": str(e)
             }
-    
-    def _log_step(self, agent_name: str, data: dict):
-        """Log execution step"""
-        self.execution_log.append({
-            "agent": agent_name,
-            "timestamp": datetime.now().isoformat(),
-            "data": data
-        })
-    
-    def _save_output(self, autolisp_code: str) -> str:
-        """Save AutoLISP code to file"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"floorplan_{timestamp}.lsp"
-        filepath = os.path.join(Config.OUTPUT_DIR, filename)
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(autolisp_code)
-        
-        return filename
-    
-    def save_execution_log(self, filename: str = None):
-        """Save execution log to JSON file"""
-        if filename is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"execution_log_{timestamp}.json"
-        
-        filepath = os.path.join(Config.OUTPUT_DIR, filename)
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(self.execution_log, f, indent=2)
-        
-        return filename
 
 
 # Test function
 def test_pipeline():
     """Test the pipeline with sample inputs"""
-    pipeline = GenerativeDesignPipeline()
     
     test_inputs = [
         "Build me a 2-bedroom house",
@@ -181,11 +246,23 @@ def test_pipeline():
     ]
     
     for user_input in test_inputs:
-        result = pipeline.execute(user_input)
-        if result["success"]:
-            print(f"Success! Generated: {result['filename']}")
-        else:
-            print(f"Error: {result['error']}")
+        print(f"\nTesting: {user_input}")
+        print("-" * 60)
+        
+        try:
+            result = run_pipeline(user_input)
+            print(f"✓ Success! Generated design with {len(result['elements']['rooms'])} rooms")
+            
+            # Save test output
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_file = f"test_output_{timestamp}.json"
+            with open(output_file, 'w') as f:
+                json.dump(result, f, indent=2)
+            print(f"Saved to: {output_file}")
+            
+        except Exception as e:
+            print(f"✗ Error: {e}")
+        
         print()
 
 

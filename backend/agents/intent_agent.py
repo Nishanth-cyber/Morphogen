@@ -15,11 +15,15 @@ class IntentAgent:
     Understands user construction intent and extracts structured information
     """
     
-    def __init__(self, api_key: str, model_name: str = "gemini-pro", temperature: float = 0.3):
+    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash", temperature: float = 0.3):
+        # Initialize with better timeout and request settings
         self.llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=api_key,
-            temperature=temperature
+            temperature=temperature,
+            timeout=120,  # 2 minutes timeout
+            max_retries=3,  # Retry 3 times
+            transport="rest"  # Use REST instead of gRPC for better stability
         )
         self.prompt_template = PromptTemplate(
             input_variables=["user_input"],
@@ -37,11 +41,15 @@ class IntentAgent:
             Dictionary with extracted intent information
         """
         try:
+            print(f"  Sending request to {self.llm.model}...")
+            
             # Format prompt
             prompt = self.prompt_template.format(user_input=user_input)
             
             # Get LLM response
             response = self.llm.invoke(prompt)
+            
+            print(f"  Received response ({len(response.content)} chars)")
             
             # Extract JSON from response
             intent_data = self._extract_json(response.content)
@@ -52,7 +60,8 @@ class IntentAgent:
             return intent_data
             
         except Exception as e:
-            print(f"Error in IntentAgent: {e}")
+            print(f"  ⚠️ Error in IntentAgent: {e}")
+            print(f"  Using fallback default intent")
             # Return default intent on error
             return self._get_default_intent()
     

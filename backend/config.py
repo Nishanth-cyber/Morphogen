@@ -9,10 +9,17 @@ class Config:
     # API Configuration
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
     
-    # Model Configuration
-    MODEL_NAME = "gemini-pro"
-    TEMPERATURE = 0.3  # Lower temperature for more consistent outputs
+    # Model Configuration - Updated for better performance
+    MODEL_NAME = os.getenv("MODEL_NAME", "gemini-1.5-flash")  # Flash is much faster
+    TEMPERATURE = float(os.getenv("TEMPERATURE", "0.3"))
     MAX_TOKENS = 2000
+    TIMEOUT = 120  # Increased timeout
+    
+    # Request Configuration for better connectivity
+    REQUEST_OPTIONS = {
+        "timeout": 120,
+        "transport": "rest"  # Use REST instead of gRPC for better stability
+    }
     
     # Application Configuration
     FLASK_HOST = "0.0.0.0"
@@ -45,3 +52,6 @@ class Config:
         
         # Create output directory if it doesn't exist
         os.makedirs(cls.OUTPUT_DIR, exist_ok=True)
+        
+        print(f"Using model: {cls.MODEL_NAME}")
+        print(f"Temperature: {cls.TEMPERATURE}")
