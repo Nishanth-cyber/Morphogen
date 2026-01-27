@@ -69,15 +69,25 @@ async def generate_design(request: GenerateRequest):
         - message: Status message
     """
     try:
-        # Import pipeline here to avoid circular imports
-        from pipeline import run_pipeline
+        # Import config to check which AI backend to use
+        from config import Config
+        Config.validate()
+        
+        # Import pipelines
         from simple_pipeline import run_simple_pipeline
         
-        # Run multi-agent pipeline
         print(f"Processing prompt: {request.prompt}")
         
+        # Choose pipeline based on configuration
         try:
-            design_data = run_pipeline(request.prompt)
+            if Config.USE_OLLAMA:
+                print("Using Ollama pipeline (FREE)...")
+                from ollama_pipeline import run_ollama_pipeline
+                design_data = run_ollama_pipeline(request.prompt, Config.OLLAMA_MODEL)
+            else:
+                print("Using Google Gemini pipeline...")
+                from pipeline import run_pipeline
+                design_data = run_pipeline(request.prompt)
         except Exception as pipeline_error:
             print(f"AI pipeline failed: {pipeline_error}")
             print("Falling back to simple rule-based generation...")
@@ -94,16 +104,23 @@ async def generate_design(request: GenerateRequest):
         
         print(f"Project created: {project_id} at {project_dir}")
         
+        # Check produced files
+        files_created = ["design.json", "floorplan.lsp", "floorplan.dxf"]
+        if os.path.exists(os.path.join(project_dir, "floorplan.dwg")):
+            files_created.append("floorplan.dwg")
+        
         return {
             "success": True,
             "project_id": project_id,
             "design_data": design_data,
             "message": f"Project created successfully at {project_dir}",
-            "files_created": ["design.json", "floorplan.lsp", "floorplan.dxf", "floorplan.dwg"]
+            "files_created": files_created
         }
         
     except Exception as e:
-        print(f"Error in generate_design: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print(f"Error in generate_design: {repr(e)}")
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 
@@ -133,7 +150,8 @@ async def update_design(request: UpdateRequest):
             "message": "Project updated successfully",
             "project_id": request.project_id,
             "project_dir": project_dir,
-            "files_updated": ["design.json", "floorplan.lsp", "floorplan.dxf", "floorplan.dwg"]
+            "files_updated": ["design.json", "floorplan.lsp", "floorplan.dxf"] + 
+                             (["floorplan.dwg"] if os.path.exists(os.path.join(project_dir, "floorplan.dwg")) else [])
         }
         
     except FileNotFoundError as e:

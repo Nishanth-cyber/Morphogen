@@ -29,9 +29,8 @@ def convert_dxf_to_dwg(dxf_path, dwg_path):
     
     # Check if ODA converter is installed
     if not converter_path:
-        print("Warning: ODA File Converter not found. Skipping DWG conversion.")
-        print("Download from: https://www.opendesign.com/guestfiles/oda_file_converter")
-        print("Searched paths:", converter_paths)
+        print("INFO: ODA File Converter not found. Skipping DWG conversion.")
+        print("      No problem! 'floorplan.dxf' is created and is compatible with all CAD software.")
         return None
     
     try:

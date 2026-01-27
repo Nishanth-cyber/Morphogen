@@ -1,4 +1,5 @@
 import ezdxf
+from ezdxf.enums import TextEntityAlignment
 from pathlib import Path
 
 def convert_json_to_dxf(design_data, output_path):
@@ -123,7 +124,7 @@ def convert_json_to_dxf(design_data, output_path):
                     'height': 300,
                     'color': 2
                 }
-            ).set_placement(label_pos, align='MIDDLE_CENTER')
+            ).set_placement(label_pos, align=TextEntityAlignment.MIDDLE_CENTER)
             
             # Room area (below name)
             if area > 0:
@@ -136,7 +137,7 @@ def convert_json_to_dxf(design_data, output_path):
                         'height': 200,
                         'color': 8
                     }
-                ).set_placement(area_pos, align='MIDDLE_CENTER')
+                ).set_placement(area_pos, align=TextEntityAlignment.MIDDLE_CENTER)
     
     # Save DXF
     doc.saveas(output_path)
