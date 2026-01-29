@@ -1,0 +1,28 @@
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# HTTP Client
+httpx==0.25.1
+requests==2.31.0
+
+# CAD/BIM Export
+ezdxf==1.1.3
+ifcopenshell>=0.7.10
+
+# Data Processing
+numpy==1.26.2
+pandas==2.1.4
+
+# Optional: Cloud LLM Support (uncomment if needed)
+# anthropic==0.7.0
+google-genai
+# openai==1.3.0
+
+# Development Tools (optional)
+# pytest==7.4.3
+# black==23.12.0
+# mypy==1.7.1

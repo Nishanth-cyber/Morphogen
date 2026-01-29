@@ -137,7 +137,7 @@ Content-Type: application/json
 ## Project Structure
 
 ```
-morphogen/
+morphogen_enhanced/
 ├── server/
 │   ├── agents/           # AI agents for different tasks
 │   │   ├── intent_agent.py
@@ -150,7 +150,8 @@ morphogen/
 │   │   ├── svg.py
 │   │   └── ifc.py
 │   ├── schemas/          # Data models
-│   │   └── geometry.py
+│   │   ├── geometry.py
+│   │   └── industrial.py
 │   ├── services/         # Core services
 │   │   ├── ollama_client.py
 │   │   └── validators.py
@@ -224,14 +225,14 @@ USE_OLLAMA=true
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
 
+# For Claude
+USE_CLAUDE=false
+ANTHROPIC_API_KEY=your_key_here
+
 # For Gemini
 USE_GEMINI=false
 GOOGLE_API_KEY=your_key_here
 ```
-
-## Quick Start
-
-See [QUICKSTART.md](QUICKSTART.md) for a 5-minute getting started guide.
 
 ## Future Enhancements
 
@@ -239,6 +240,13 @@ See [QUICKSTART.md](QUICKSTART.md) for a 5-minute getting started guide.
 2. **Parametric Design**
 3. **Multi-floor Buildings**
 4. **Structural Analysis Integration**
+5. **Cost Estimation**
+6. **Material Specifications**
+7. **Real-time Collaboration**
+8. **Version Control**
+
+## Contributing
+Contributions are welcome! Please read CONTRIBUTING.md for guidelines.
 
 ## License
 MIT License - See LICENSE file

@@ -1,16 +1,162 @@
-# React + Vite
+# Morphogen Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ChatGPT-style conversational UI for AI-powered engineering design generation.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 💬 **Conversational Interface** - ChatGPT-like chat experience
+- 🎨 **Live Preview** - Real-time SVG visualization
+- 🔄 **Prompt-Based Editing** - Modify designs through natural language
+- 📥 **Export Formats** - Download as DXF (AutoCAD) or IFC (BIM)
+- ✅ **Validation Warnings** - Real-time engineering checks
+- 🎯 **Clarification Loop** - Interactive question-answer workflow
 
-## React Compiler
+## Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js 16+
+- Backend server running on `http://localhost:8000`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+The app will be available at `http://localhost:3000`
+
+### Build for Production
+
+```bash
+npm run build
+npm run preview
+```
+
+## Project Structure
+
+```
+client/
+├── src/
+│   ├── components/          # React components
+│   │   ├── Header.tsx
+│   │   ├── ChatHistory.tsx
+│   │   ├── ChatMessage.tsx
+│   │   ├── ChatInput.tsx
+│   │   ├── LoadingIndicator.tsx
+│   │   └── SVGPreview.tsx
+│   ├── services/            # API services
+│   │   └── api.ts
+│   ├── types/               # TypeScript types
+│   │   └── index.ts
+│   ├── utils/               # Utility functions
+│   │   └── helpers.ts
+│   ├── App.tsx              # Main app component
+│   ├── main.tsx             # Entry point
+│   └── index.css            # Global styles
+├── index.html
+├── package.json
+├── vite.config.ts
+├── tailwind.config.js
+└── tsconfig.json
+```
+
+## Usage
+
+### Starting a Conversation
+
+1. Type your design prompt in the input box
+2. Example: "Generate a piping layout for a 50 MLD desalination plant"
+3. Press Enter to send
+
+### Clarification Questions
+
+If the system needs more information:
+1. Questions will appear in the chat
+2. Answer them in the input box
+3. The design will generate once all questions are answered
+
+### Editing Designs
+
+Once a design is generated:
+1. Type edit instructions: "Move the pump 5 meters to the right"
+2. The design will update automatically
+3. View changes in the preview panel
+
+### Exporting
+
+Click the export buttons in the preview panel:
+- **Export DXF** - For AutoCAD
+- **Export IFC** - For BIM software (Revit, ArchiCAD)
+
+## API Integration
+
+The frontend communicates with the backend via these endpoints:
+
+- `POST /api/generate` - Generate new design
+- `POST /api/edit` - Edit existing design
+- `POST /api/generate/dxf` - Export to DXF
+- `POST /api/generate/ifc` - Export to IFC
+- `GET /api/capabilities` - Get system capabilities
+- `GET /health` - Health check
+
+## Technology Stack
+
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **Tailwind CSS** - Styling
+- **Axios** - HTTP client
+- **Lucide React** - Icons
+
+## Development
+
+### Code Style
+
+- TypeScript strict mode enabled
+- ESLint for code quality
+- Functional components with hooks
+- Props interfaces for all components
+
+### State Management
+
+State is managed at the App level with React hooks:
+- `messages` - Chat history
+- `currentGeometryJSON` - Active design data
+- `svgPreview` - SVG visualization
+- `loadingState` - UI loading states
+
+### Adding New Features
+
+1. Create component in `src/components/`
+2. Add types in `src/types/`
+3. Update API service if needed
+4. Import and use in `App.tsx`
+
+## Troubleshooting
+
+### Backend Connection Issues
+
+If you see connection errors:
+1. Ensure backend is running: `uvicorn main:app --reload`
+2. Check proxy settings in `vite.config.ts`
+3. Verify API URL in `.env`
+
+### Build Errors
+
+```bash
+# Clear node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+
+# Clear Vite cache
+rm -rf node_modules/.vite
+```
+
+## License
+
+MIT License - See LICENSE file
