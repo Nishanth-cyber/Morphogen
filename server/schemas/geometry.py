@@ -10,6 +10,7 @@ Point3D = Tuple[float, float, float]
 class PipeType(str, Enum):
     MAIN_FEED = "main_feed"
     BRINE_DISCHARGE = "brine_discharge"
+    BRINE = "brine"
     PERMEATE = "permeate"
     CHEMICAL = "chemical"
     CLEANING = "cleaning"
@@ -23,6 +24,9 @@ class EquipmentType(str, Enum):
     HEAT_EXCHANGER = "heat_exchanger"
     VALVE = "valve"
     MIXER = "mixer"
+    MULTIMEDIA = "multimedia"
+    CARTRIDGE = "cartridge"
+    DIFFUSER = "diffuser"
 
 class ValveType(str, Enum):
     GATE = "gate"
@@ -65,7 +69,7 @@ class Pipe(BaseModel):
     start: Point
     end: Point
     diameter: float = Field(description="Pipe diameter in mm", ge=25, le=3000)
-    pipe_type: PipeType
+    pipe_type: str = Field(description="Type of pipe (e.g. main_feed, permeate, brine)")
     material: str = Field(default="HDPE", description="Pipe material")
     flow_direction: FlowDirection
     flow_rate: Optional[float] = Field(default=None, description="Flow rate in m³/h")
@@ -76,7 +80,7 @@ class Pipe(BaseModel):
 
 class Equipment(BaseModel):
     id: str = Field(description="Unique equipment identifier")
-    equipment_type: EquipmentType
+    equipment_type: str = Field(description="Type of equipment (e.g. pump, tank, filter)")
     position: Point
     width: float = Field(description="Equipment width in mm")
     length: float = Field(description="Equipment length in mm")
@@ -91,7 +95,7 @@ class Equipment(BaseModel):
 
 class Valve(BaseModel):
     id: str = Field(description="Unique valve identifier")
-    valve_type: ValveType
+    valve_type: str = Field(description="Type of valve (e.g. gate, check)")
     position: Point
     size: float = Field(description="Valve size (diameter) in mm")
     pipe_id: str = Field(description="Associated pipe ID")

@@ -126,18 +126,89 @@ async def generate_design(request: GenerateRequest):
     svg_output = ""
     dxf_output = ""
     ifc_base64 = ""
+    lsp_output = ""
+    
+    # Track export success for each format
+    export_status = {
+        "dxf": False,
+        "lsp": False,
+        "svg": False,
+        "ifc": False
+    }
 
-    # 6a. SVG Export
+    # 6a. DXF Export (CRITICAL - Must work)
     try:
-        svg_output = svg.export_to_svg(geometry)
-    except Exception as e:
-        warnings_list.append(f"SVG Export warning: {str(e)}")
-
-    # 6b. DXF Export
-    try:
+        print("DEBUG: Starting DXF Export...")
         dxf_output = dxf.export_to_dxf(geometry)
+        export_status["dxf"] = True
+        print(f"DEBUG: DXF Export successful ({len(dxf_output)} bytes)")
     except Exception as e:
-        warnings_list.append(f"DXF Export warning: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        warnings_list.append(f"DXF Export FAILED: {str(e)}")
+        # Generate minimal DXF as fallback
+        try:
+            from exporters.dxf import generate_minimal_dxf
+            dxf_output = generate_minimal_dxf("Export failed - see warnings")
+            warnings_list.append("Using minimal fallback DXF")
+        except:
+            pass
+
+    # 6b. LSP Export (High Priority)
+    try:
+        print("DEBUG: Starting LSP Generation...")
+        lsp_output = executor.run_lsp_agent(current_plan, geometry)
+        export_status["lsp"] = True
+        print(f"DEBUG: LSP Generation successful ({len(lsp_output)} bytes)")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        warnings_list.append(f"LSP Generation FAILED: {str(e)}")
+
+    # 6c. SVG Export (Multi-Strategy)
+    # Strategy 1: Try LSP → SVG if LSP available
+    if lsp_output and export_status["lsp"]:
+        try:
+            print("DEBUG: Attempting LSP to SVG Conversion...")
+            svg_from_lsp = executor.run_lsp_to_svg_agent(lsp_output)
+            if svg_from_lsp and len(svg_from_lsp) > 100 and "<svg" in svg_from_lsp.lower():
+                svg_output = svg_from_lsp
+                export_status["svg"] = True
+                print("DEBUG: LSP to SVG successful")
+            else:
+                raise ValueError("LSP to SVG produced invalid output")
+        except Exception as e:
+            print(f"DEBUG: LSP to SVG failed: {str(e)}")
+            warnings_list.append(f"LSP to SVG conversion failed: {str(e)}")
+    
+    # Strategy 2: Fallback to direct Geometry → SVG
+    if not export_status["svg"]:
+        try:
+            print("DEBUG: Using direct Geometry to SVG fallback...")
+            svg_output = svg.export_to_svg(geometry)
+            export_status["svg"] = True
+            warnings_list.append("SVG generated from geometry (LSP conversion unavailable)")
+            print("DEBUG: Direct SVG generation successful")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            warnings_list.append(f"Direct SVG generation FAILED: {str(e)}")
+            # Last resort: empty SVG
+            from exporters.svg import generate_empty_svg
+            svg_output = generate_empty_svg("Failed to generate visualization")
+    
+    # 6d. IFC Export (Optional)
+    # Note: IFC export is handled separately via /generate/ifc endpoint
+    # Skipping here to avoid performance issues
+    
+    # Validation summary
+    successful_exports = [fmt for fmt, success in export_status.items() if success]
+    failed_exports = [fmt for fmt, success in export_status.items() if not success]
+    
+    if failed_exports:
+        warnings_list.append(f"Some exports failed: {', '.join(failed_exports)}")
+    
+    print(f"DEBUG: Export Summary - Success: {successful_exports}, Failed: {failed_exports}")
 
     return GenerateResponse(
         status="complete",
@@ -146,7 +217,8 @@ async def generate_design(request: GenerateRequest):
         artifacts={
             "svg": svg_output,
             "dxf": dxf_output,
-            "ifc": ifc_base64
+            "ifc": ifc_base64,
+            "lsp": lsp_output
         },
         warnings=warnings_list if warnings_list else None
     )
